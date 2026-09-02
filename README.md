@@ -1,8 +1,12 @@
 # Nitya Panchang — automated daily Instagram carousel
 
-Generates an eight-language Panchang card set and publishes it to Instagram as a
-single carousel every morning at 6:00 AM IST. **Each card is calculated for its own
-city**, so every follower sees timings that actually apply where they are:
+Publishes two Instagram carousels a day for @nityasankalpa: the **panchang** at
+6:00 AM IST and a **scripture verse** in the evening. Instagram caps a carousel at
+10 slides, so the 8 panchang cards and the 8 verse cards go out as two posts rather
+than one 16-slide carousel.
+
+Every panchang card is **calculated for its own city**, so followers see timings that
+actually apply where they are:
 
 | Slide | Language | City | Calendar |
 |---|---|---|---|
@@ -19,7 +23,23 @@ Astronomy is computed live with the Swiss Ephemeris using the Lahiri (Chitrapaks
 ayanamsa and the Drik (true-position) system — the same basis published panchangams use.
 Nothing is hardcoded or scraped.
 
-## What's on each card
+## The scripture carousel
+
+Eight slides, one per language, all carrying the same verse for that day: the
+Sanskrit in Devanagari, a roman transliteration, the meaning in that card's
+language, and the citation. Verses rotate deterministically by date
+(`verses.verse_for`), so the cycle is stable and repeats every `len(VERSES)` days.
+
+The set in `verses.py` is 12 verses from the Bhagavad Gita and the Upanishads
+(Isha, Brihadaranyaka, Mundaka, Katha). Add more by appending to `VERSES` — each
+entry needs `book`, `ref`, `sa`, `iast`, and a `tr` meaning for all eight languages.
+The card auto-shrinks its type until the verse fits, so length is forgiving.
+
+> **Before the first publish:** the Sanskrit and English are standard and widely
+> printed, but the regional-language meanings are working translations. Have a
+> native reader check them and correct `verses.py` directly.
+
+## What's on each panchang card
 
 | Section | Fields |
 |---|---|
@@ -58,8 +78,10 @@ Conventions worth knowing:
 | `assets/` | Logo mark and lockup; `deities/` holds the seven painted portraits |
 | `card.py` | HTML/CSS card template, rendered to JPEG via headless Chromium |
 | `publish.py` | Image hosting (GitHub or imgbb) + Instagram Graph API carousel publishing |
+| `verses.py` | The verse corpus and the daily rotation |
 | `pipeline.py` | Orchestrates compute → render → host → publish |
-| `.github/workflows/daily-panchang.yml` | The 6 AM IST cron job |
+| `bootstrap-repo.sh` | Creates the GitHub repo and pushes, one command |
+| `.github/workflows/daily-panchang.yml` | The two scheduled publishing runs |
 
 ## Setup
 
@@ -95,14 +117,21 @@ repo. (imgbb is supported as an alternative — set `IMGBB_KEY` instead.)
 cp config.env.example config.env   # then fill it in
 set -a && source config.env && set +a
 
-python3 pipeline.py --dry-run      # render only, nothing posted
-python3 pipeline.py                # render and publish
+python3 pipeline.py --dry-run          # render only, nothing posted
+python3 pipeline.py                    # the panchang carousel
+python3 pipeline.py --post verse       # the scripture carousel
+python3 pipeline.py --post both        # both, as two separate posts
 python3 pipeline.py --date 2026-09-05
 ```
 
-### 4. Schedule it
+### 4. Push and schedule it
 
-Push this repo to GitHub (public, so Instagram can fetch the images), then add under
+```bash
+./bootstrap-repo.sh          # creates the repo and pushes; needs gh or GITHUB_TOKEN
+```
+
+The repo must be **public** — Instagram fetches each card from
+`raw.githubusercontent.com` and cannot authenticate to a private repo. Then add under
 **Settings → Secrets and variables → Actions**:
 
 | Kind | Name | Value |
@@ -111,8 +140,14 @@ Push this repo to GitHub (public, so Instagram can fetch the images), then add u
 | Secret | `IG_ACCESS_TOKEN` | long-lived token |
 | Secret | `GH_IMAGE_TOKEN` | the fine-grained PAT from step 2 |
 
-The workflow then runs daily. Use **Actions → Daily Nitya Panchang → Run workflow**
-to fire it manually, with a `dry_run` checkbox for testing.
+The workflow then runs twice daily — `20 0 * * *` publishes the panchang and
+`20 13 * * *` the scripture carousel. Use **Actions → Daily Nitya Panchang → Run
+workflow** to fire either by hand; it has a `post` selector and a `dry_run` checkbox.
+Start with `dry_run = true` and check the uploaded artifacts before going live.
+
+**Changing the times** — edit the two cron lines (they are UTC; IST is +5:30) and the
+matching schedule string in the *Decide which carousel* step. GitHub's scheduler can
+lag 5-20 minutes under load, so both fire ten minutes early.
 
 ## Changing things
 
