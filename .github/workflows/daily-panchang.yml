@@ -1,0 +1,94 @@
+name: Daily Nitya Panchang
+
+# Instagram caps a carousel at 10 slides, so the 8 panchang cards and the
+# 8 scripture cards go out as two posts rather than one 16-slide carousel.
+on:
+  schedule:
+    - cron: "20 0 * * *"    # 05:50 IST -> the panchang carousel, lands near 6 AM
+    - cron: "20 13 * * *"   # 18:50 IST -> the scripture carousel
+  workflow_dispatch:
+    inputs:
+      post:
+        description: "Which carousel to publish"
+        type: choice
+        options: [panchang, verse, both]
+        default: panchang
+      date:
+        description: "Date to generate (YYYY-MM-DD, blank = today IST)"
+        required: false
+      dry_run:
+        description: "Render only, do not publish"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nitya-panchang-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Indic fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-core fonts-indic fonts-noto-unhinted
+          fc-cache -f
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt
+
+      - name: Cache Playwright browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-chromium-${{ runner.os }}
+
+      - name: Install Chromium
+        run: python -m playwright install --with-deps chromium
+
+      - name: Decide which carousel this run publishes
+        id: which
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            if [ "${{ github.event.schedule }}" = "20 13 * * *" ]; then
+              echo "post=verse" >> "$GITHUB_OUTPUT"
+            else
+              echo "post=panchang" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "post=${{ inputs.post || 'panchang' }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate and publish
+        env:
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GH_IMAGE_TOKEN }}
+          GITHUB_BRANCH: ${{ github.ref_name }}
+        run: |
+          ARGS="--post ${{ steps.which.outputs.post }}"
+          [ -n "${{ inputs.date }}" ] && ARGS="$ARGS --date ${{ inputs.date }}"
+          [ "${{ inputs.dry_run }}" = "true" ] && ARGS="$ARGS --dry-run"
+          echo "Running: python pipeline.py $ARGS"
+          python pipeline.py $ARGS
+
+      - name: Upload cards as build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cards-${{ steps.which.outputs.post }}-${{ github.run_number }}
+          path: out/*
+          retention-days: 14
