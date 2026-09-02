@@ -127,7 +127,15 @@ python3 pipeline.py --date 2026-09-05
 ### 4. Push and schedule it
 
 ```bash
-./bootstrap-repo.sh          # creates the repo and pushes; needs gh or GITHUB_TOKEN
+./bootstrap-repo.sh          # pushes to rajendrakalla-cpu/nityacards
+```
+
+It works whether or not the repo already exists — if it does, it just pushes. No
+GitHub CLI? Do it by hand:
+
+```bash
+git remote add origin https://github.com/rajendrakalla-cpu/nityacards.git
+git push -u origin main
 ```
 
 The repo must be **public** — Instagram fetches each card from
