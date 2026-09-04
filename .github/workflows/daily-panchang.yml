@@ -3,8 +3,10 @@ name: Daily Nitya Panchang
 # Instagram caps a carousel at 10 slides, so the 8 panchang cards and the
 # 8 scripture cards go out as two posts rather than one 16-slide carousel.
 on:
-  schedule:
-    - cron: "20 0 * * *"    # 05:50 IST -> the panchang carousel, lands near 6 AM
+    schedule:
+    - cron: "37 20 * * *"   # 02:07 IST -> the panchang carousel. Early on purpose:
+                             # GitHub's scheduler can lag hours during high load, so
+                             # this leaves a buffer to still land well before morning.
     - cron: "20 13 * * *"   # 18:50 IST -> the scripture carousel
   workflow_dispatch:
     inputs:
