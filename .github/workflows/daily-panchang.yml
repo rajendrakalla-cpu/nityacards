@@ -1,11 +1,11 @@
 name: Daily Nitya Panchang
 
-# Instagram caps a carousel at 10 slides, so the 8 panchang cards and the
-# 8 scripture cards go out as two posts rather than one 16-slide carousel.
+# The panchang carousel posts automatically every morning. The scripture
+# verse carousel is manual-only (Actions -> Run workflow -> post: verse) --
+# there's no evening schedule for it anymore.
 on:
   schedule:
     - cron: "37 20 * * *"   # 02:07 IST -> panchang carousel; scheduled early so a scheduler delay still lands before morning
-    - cron: "20 13 * * *"   # 18:50 IST -> the scripture carousel
   workflow_dispatch:
     inputs:
       post:
@@ -62,11 +62,7 @@ jobs:
         id: which
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
-            if [ "${{ github.event.schedule }}" = "20 13 * * *" ]; then
-              echo "post=verse" >> "$GITHUB_OUTPUT"
-            else
-              echo "post=panchang" >> "$GITHUB_OUTPUT"
-            fi
+            echo "post=panchang" >> "$GITHUB_OUTPUT"
           else
             echo "post=${{ inputs.post || 'panchang' }}" >> "$GITHUB_OUTPUT"
           fi
