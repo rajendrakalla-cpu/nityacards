@@ -147,9 +147,9 @@ def publish_carousel(ig_user_id, token, image_urls, caption):
     parent = r["id"]
     _wait_ready(parent, token)
 
-    r = _post(f"{IG_API}/{ig_user_id}/media_publish",
-              {"creation_id": parent, "access_token": token})
+    r = _publish_when_ready(ig_user_id, parent, token)
     return r["id"]
+
 
 
 def refresh_token(token):
