@@ -110,6 +110,23 @@ def _wait_ready(container_id, token, tries=20, delay=5):
         time.sleep(delay)
     raise RuntimeError(f"Container {container_id} not ready in time")
 
+def _publish_when_ready(ig_user_id, parent, token, tries=6, delay=15):
+    """Call media_publish, retrying if Meta says the container isn't ready yet."""
+    last = None
+    for i in range(tries):
+        try:
+            return _post(f"{IG_API}/{ig_user_id}/media_publish",
+                         {"creation_id": parent, "access_token": token}, retries=1)
+        except RuntimeError as e:
+            if "2207027" in str(e) or "not ready for publishing" in str(e):
+                last = e
+                time.sleep(delay)
+                continue
+            raise
+    raise last
+
+
+
 
 def publish_carousel(ig_user_id, token, image_urls, caption):
     """Create item containers, group into a carousel, publish. Returns media id."""
@@ -150,18 +167,4 @@ def quota_left(ig_user_id, token):
     except Exception:                                # noqa: BLE001
         return None
         
-def _publish_when_ready(ig_user_id, parent, token, tries=6, delay=15):
-    """Call media_publish, retrying if Meta says the container isn't ready yet."""
-    last = None
-    for i in range(tries):
-        try:
-            return _post(f"{IG_API}/{ig_user_id}/media_publish",
-                         {"creation_id": parent, "access_token": token}, retries=1)
-        except RuntimeError as e:
-            if "2207027" in str(e) or "not ready for publishing" in str(e):
-                last = e
-                time.sleep(delay)
-                continue
-            raise
-    raise last
 
