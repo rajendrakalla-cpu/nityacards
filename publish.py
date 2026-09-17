@@ -149,3 +149,19 @@ def quota_left(ig_user_id, token):
         return d.get("config", {}).get("quota_total", 100) - d.get("quota_usage", 0)
     except Exception:                                # noqa: BLE001
         return None
+        
+def _publish_when_ready(ig_user_id, parent, token, tries=6, delay=15):
+    """Call media_publish, retrying if Meta says the container isn't ready yet."""
+    last = None
+    for i in range(tries):
+        try:
+            return _post(f"{IG_API}/{ig_user_id}/media_publish",
+                         {"creation_id": parent, "access_token": token}, retries=1)
+        except RuntimeError as e:
+            if "2207027" in str(e) or "not ready for publishing" in str(e):
+                last = e
+                time.sleep(delay)
+                continue
+            raise
+    raise last
+
